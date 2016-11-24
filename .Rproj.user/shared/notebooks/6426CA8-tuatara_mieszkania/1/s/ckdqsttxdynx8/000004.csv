@@ -1,0 +1,2 @@
+"0","fit01 <- lm(cena~wielkosc, test01)"
+"0","abline(fit01, col = ""red"")"

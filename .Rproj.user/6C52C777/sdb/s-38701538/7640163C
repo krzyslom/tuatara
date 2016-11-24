@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "# Libraries\n\nlibrary(dplyr)\nlibrary(pbapply)\nlibrary(readr)\nlibrary(rvest)\nlibrary(stringdist)\nlibrary(stringi)\nlibrary(tidyr)\n\n# Functions\n\nsource(\"adres_z_opisu.R\")\n\nscrapuj <-\n  function(adresy) {\n    adresy %>%\n      pblapply(\n        function(href) {\n          html <-\n            tryCatch(\n              {\n                href %>%\n                  read_html()\n              },\n              error = function(e) {\n                message(paste(\"Oferta nieaktualna\", href))\n                message(\"Oryginalna wiadomość:\")\n                message(e)\n                actualPages[1] %>% read_html()\n              }\n            )\n          opis <-\n            html %>%\n            html_nodes(\".vip-details .description\") %>%\n            html_text()\n          adres <-\n            html %>%\n            html_nodes(\".address\") %>%\n            html_text()\n          if (adres %>% length() == 0) {adres <- \"BRAK_ADRESU\"}\n          cena <-\n            html %>%\n            html_nodes(\".clearfix .amount\") %>%\n            html_text()\n          if (cena %>% length() == 0) {\n            cena <-\n              html %>%\n              html_nodes(\".clearfix .value\") %>%\n              html_text()\n          }\n          tytuł <-\n            html %>%\n            html_nodes(\".myAdTitle\") %>%\n            html_text()\n          c(\".name\", \".attribute .value\") %>%\n            lapply(\n              function(css) {\n                css %>%\n                  html_nodes(html, .) %>%\n                  html_text()\n              }\n            ) %>%\n            setNames(c(\"keys\", \"values\"))\n        } %>%\n          as_data_frame() %>%\n          spread(keys, values) %>%\n          setNames(names(.) %>% tolower() %>% gsub(\"[[:space:]]\", \"_\", .)) %>%\n          cbind(href, opis, adres, cena, tytuł)\n      )\n  }\n\n# Variables\n\nslownik <-\n  data.table::fread(\n    'warszawskie_ulice.txt', encoding = \"UTF-8\", data.table = FALSE\n  ) %>%\n  unlist() %>%\n  unname()\nmainPage <- \"https://www.gumtree.pl\"\nsearchPage <- mainPage %>% paste0(\"/s-mieszkania-i-domy-do-wynajecia/warszawa/v1c9008l3200008p\")\nnOfPages <-\n  searchPage %>%\n  paste0(1) %>%\n  read_html() %>%\n  html_nodes(\".last\") %>%\n  html_attr(\"href\") %>%\n  gsub(\".*v1c9008l3200008p\", \"\", .) %>%\n  as.integer()\n\nlinks <-\n  1:nOfPages %>%\n  pblapply(\n    function(nop) {\n      searchPage %>%\n        paste0(nop) %>%\n        read_html() %>%\n        html_nodes(\".href-link\") %>%\n        html_attr(\"href\")\n    }\n  ) %>%\n  unlist() %>%\n  gsub(\"/a-mieszkania-i-domy-do-wynajecia/\", \"\", .) %>%\n  unique()\n\nactualPages <-\n  mainPage %>%\n  paste0(\"/a-mieszkania-i-domy-do-wynajecia/\", links)\n\n# Uwaga, należy jeszcze podzielić adresy po około 1000\ndata <- scrapuj(actualPages)",
+    "created" : 1480018272249.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2254152920",
+    "id" : "7640163C",
+    "lastKnownWriteTime" : 1480018520,
+    "last_content_update" : 1480018520802,
+    "path" : "~/GitHub/tuatara/scraper.R",
+    "project_path" : "scraper.R",
+    "properties" : {
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

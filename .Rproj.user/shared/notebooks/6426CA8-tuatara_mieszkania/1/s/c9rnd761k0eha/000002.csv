@@ -1,0 +1,8 @@
+"0","cvBladK10 <-"
+"0","  stopien %>%"
+"0","  sapply("
+"0","    function(x) {"
+"0","      cv.glm(dane, fit32, K = 10)$delta[1]"
+"0","    }"
+"0","  )"
+"0","plot(stopien, cvBlad, type = ""b"")"

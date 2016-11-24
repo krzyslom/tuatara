@@ -1,0 +1,7 @@
+"0","test11 <-"
+"0","  mieszkania %>%"
+"0","  filter("
+"0","    cena <= 100000,"
+"0","    wielkosc <= 1000"
+"0","  )"
+"0","plot(cena~wielkosc, test11)"

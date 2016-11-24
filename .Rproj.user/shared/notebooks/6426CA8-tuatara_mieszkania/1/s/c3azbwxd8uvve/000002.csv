@@ -1,0 +1,7 @@
+"0","predict.regsubsets <-"
+"0","  function(obiekt, dane, id, ...) {"
+"0","    form <- as.formula(obiekt$call[[2]])"
+"0","    mat <- model.matrix(form, dane)"
+"0","    coefi <- coef(obiekt, id = id)"
+"0","    mat[, names(coefi)]%*%coefi"
+"0","  }"

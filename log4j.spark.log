@@ -1,0 +1,80 @@
+16/10/24 12:55:00 INFO SparkContext: Running Spark version 2.0.1
+16/10/24 12:55:00 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+16/10/24 12:55:01 INFO SecurityManager: Changing view acls to: krzysztof
+16/10/24 12:55:01 INFO SecurityManager: Changing modify acls to: krzysztof
+16/10/24 12:55:01 INFO SecurityManager: Changing view acls groups to: 
+16/10/24 12:55:01 INFO SecurityManager: Changing modify acls groups to: 
+16/10/24 12:55:01 INFO SecurityManager: SecurityManager: authentication disabled; ui acls disabled; users  with view permissions: Set(krzysztof); groups with view permissions: Set(); users  with modify permissions: Set(krzysztof); groups with modify permissions: Set()
+16/10/24 12:55:01 INFO Utils: Successfully started service 'sparkDriver' on port 36982.
+16/10/24 12:55:01 INFO SparkEnv: Registering MapOutputTracker
+16/10/24 12:55:01 INFO SparkEnv: Registering BlockManagerMaster
+16/10/24 12:55:01 INFO DiskBlockManager: Created local directory at /tmp/blockmgr-3a03f0e9-50e2-4e54-b541-996d35f8e959
+16/10/24 12:55:01 INFO MemoryStore: MemoryStore started with capacity 366.3 MB
+16/10/24 12:55:01 INFO SparkEnv: Registering OutputCommitCoordinator
+16/10/24 12:55:01 INFO Utils: Successfully started service 'SparkUI' on port 4040.
+16/10/24 12:55:01 INFO SparkUI: Bound SparkUI to 127.0.0.1, and started at http://127.0.0.1:4040
+16/10/24 12:55:01 INFO SparkContext: Added JAR file:/home/krzysztof/.ivy2/jars/com.databricks_spark-csv_2.11-1.3.0.jar at spark://127.0.0.1:36982/jars/com.databricks_spark-csv_2.11-1.3.0.jar with timestamp 1477306501855
+16/10/24 12:55:01 INFO SparkContext: Added JAR file:/home/krzysztof/.ivy2/jars/org.apache.commons_commons-csv-1.1.jar at spark://127.0.0.1:36982/jars/org.apache.commons_commons-csv-1.1.jar with timestamp 1477306501856
+16/10/24 12:55:01 INFO SparkContext: Added JAR file:/home/krzysztof/.ivy2/jars/com.univocity_univocity-parsers-1.5.1.jar at spark://127.0.0.1:36982/jars/com.univocity_univocity-parsers-1.5.1.jar with timestamp 1477306501856
+16/10/24 12:55:01 INFO SparkContext: Added JAR file:/home/krzysztof/R/x86_64-pc-linux-gnu-library/3.3/sparklyr/java/sparklyr-2.0-2.11.jar at spark://127.0.0.1:36982/jars/sparklyr-2.0-2.11.jar with timestamp 1477306501857
+16/10/24 12:55:01 INFO Executor: Starting executor ID driver on host localhost
+16/10/24 12:55:01 INFO Utils: Successfully started service 'org.apache.spark.network.netty.NettyBlockTransferService' on port 45529.
+16/10/24 12:55:01 INFO NettyBlockTransferService: Server created on 127.0.0.1:45529
+16/10/24 12:55:01 INFO BlockManagerMaster: Registering BlockManager BlockManagerId(driver, 127.0.0.1, 45529)
+16/10/24 12:55:01 INFO BlockManagerMasterEndpoint: Registering block manager 127.0.0.1:45529 with 366.3 MB RAM, BlockManagerId(driver, 127.0.0.1, 45529)
+16/10/24 12:55:01 INFO BlockManagerMaster: Registered BlockManager BlockManagerId(driver, 127.0.0.1, 45529)
+16/10/24 12:55:02 WARN SparkContext: Use an existing SparkContext, some configuration may not take effect.
+16/10/24 12:55:02 INFO HiveSharedState: Warehouse path is '/home/krzysztof/tuatara/spark-warehouse'.
+16/10/24 12:55:02 INFO SparkSqlParser: Parsing command: SHOW TABLES
+16/10/24 12:55:02 INFO HiveUtils: Initializing HiveMetastoreConnection version 1.2.1 using Spark classes.
+16/10/24 12:55:04 INFO HiveMetaStore: 0: Opening raw store with implemenation class:org.apache.hadoop.hive.metastore.ObjectStore
+16/10/24 12:55:04 INFO ObjectStore: ObjectStore, initialize called
+16/10/24 12:55:05 INFO Persistence: Property datanucleus.cache.level2 unknown - will be ignored
+16/10/24 12:55:05 INFO Persistence: Property hive.metastore.integral.jdo.pushdown unknown - will be ignored
+16/10/24 12:55:07 INFO ObjectStore: Setting MetaStore object pin classes with hive.metastore.cache.pinobjtypes="Table,StorageDescriptor,SerDeInfo,Partition,Database,Type,FieldSchema,Order"
+16/10/24 12:55:08 INFO Datastore: The class "org.apache.hadoop.hive.metastore.model.MFieldSchema" is tagged as "embedded-only" so does not have its own datastore table.
+16/10/24 12:55:08 INFO Datastore: The class "org.apache.hadoop.hive.metastore.model.MOrder" is tagged as "embedded-only" so does not have its own datastore table.
+16/10/24 12:55:09 INFO Datastore: The class "org.apache.hadoop.hive.metastore.model.MFieldSchema" is tagged as "embedded-only" so does not have its own datastore table.
+16/10/24 12:55:09 INFO Datastore: The class "org.apache.hadoop.hive.metastore.model.MOrder" is tagged as "embedded-only" so does not have its own datastore table.
+16/10/24 12:55:09 INFO MetaStoreDirectSql: Using direct SQL, underlying DB is DERBY
+16/10/24 12:55:09 INFO ObjectStore: Initialized ObjectStore
+16/10/24 12:55:09 WARN ObjectStore: Version information not found in metastore. hive.metastore.schema.verification is not enabled so recording the schema version 1.2.0
+16/10/24 12:55:09 WARN ObjectStore: Failed to get database default, returning NoSuchObjectException
+16/10/24 12:55:10 INFO HiveMetaStore: Added admin role in metastore
+16/10/24 12:55:10 INFO HiveMetaStore: Added public role in metastore
+16/10/24 12:55:10 INFO HiveMetaStore: No user is added in admin role, since config is empty
+16/10/24 12:55:10 INFO HiveMetaStore: 0: get_all_databases
+16/10/24 12:55:10 INFO audit: ugi=krzysztof	ip=unknown-ip-addr	cmd=get_all_databases	
+16/10/24 12:55:10 INFO HiveMetaStore: 0: get_functions: db=default pat=*
+16/10/24 12:55:10 INFO audit: ugi=krzysztof	ip=unknown-ip-addr	cmd=get_functions: db=default pat=*	
+16/10/24 12:55:10 INFO Datastore: The class "org.apache.hadoop.hive.metastore.model.MResourceUri" is tagged as "embedded-only" so does not have its own datastore table.
+16/10/24 12:55:11 INFO SessionState: Created HDFS directory: /tmp/hive/krzysztof
+16/10/24 12:55:11 INFO SessionState: Created local directory: /tmp/krzysztof
+16/10/24 12:55:11 INFO SessionState: Created local directory: /tmp/aea18057-e110-4877-9ed4-75ce1ee87f78_resources
+16/10/24 12:55:11 INFO SessionState: Created HDFS directory: /tmp/hive/krzysztof/aea18057-e110-4877-9ed4-75ce1ee87f78
+16/10/24 12:55:11 INFO SessionState: Created local directory: /tmp/krzysztof/aea18057-e110-4877-9ed4-75ce1ee87f78
+16/10/24 12:55:11 INFO SessionState: Created HDFS directory: /tmp/hive/krzysztof/aea18057-e110-4877-9ed4-75ce1ee87f78/_tmp_space.db
+16/10/24 12:55:11 INFO HiveClientImpl: Warehouse location for Hive client (version 1.2.1) is /home/krzysztof/tuatara/spark-warehouse
+16/10/24 12:55:11 INFO SessionState: Created local directory: /tmp/37b83887-597b-457e-8aa2-70bc89813e48_resources
+16/10/24 12:55:11 INFO SessionState: Created HDFS directory: /tmp/hive/krzysztof/37b83887-597b-457e-8aa2-70bc89813e48
+16/10/24 12:55:11 INFO SessionState: Created local directory: /tmp/krzysztof/37b83887-597b-457e-8aa2-70bc89813e48
+16/10/24 12:55:11 INFO SessionState: Created HDFS directory: /tmp/hive/krzysztof/37b83887-597b-457e-8aa2-70bc89813e48/_tmp_space.db
+16/10/24 12:55:11 INFO HiveClientImpl: Warehouse location for Hive client (version 1.2.1) is /home/krzysztof/tuatara/spark-warehouse
+16/10/24 12:55:11 INFO HiveMetaStore: 0: create_database: Database(name:default, description:default database, locationUri:file:/home/krzysztof/tuatara/spark-warehouse, parameters:{})
+16/10/24 12:55:11 INFO audit: ugi=krzysztof	ip=unknown-ip-addr	cmd=create_database: Database(name:default, description:default database, locationUri:file:/home/krzysztof/tuatara/spark-warehouse, parameters:{})	
+16/10/24 12:55:14 INFO HiveMetaStore: 0: get_database: default
+16/10/24 12:55:14 INFO audit: ugi=krzysztof	ip=unknown-ip-addr	cmd=get_database: default	
+16/10/24 12:55:14 INFO HiveMetaStore: 0: get_database: default
+16/10/24 12:55:14 INFO audit: ugi=krzysztof	ip=unknown-ip-addr	cmd=get_database: default	
+16/10/24 12:55:14 INFO HiveMetaStore: 0: get_tables: db=default pat=*
+16/10/24 12:55:14 INFO audit: ugi=krzysztof	ip=unknown-ip-addr	cmd=get_tables: db=default pat=*	
+16/10/24 12:55:24 INFO SparkContext: Invoking stop() from shutdown hook
+16/10/24 12:55:24 INFO SparkUI: Stopped Spark web UI at http://127.0.0.1:4040
+16/10/24 12:55:24 INFO MapOutputTrackerMasterEndpoint: MapOutputTrackerMasterEndpoint stopped!
+16/10/24 12:55:24 INFO MemoryStore: MemoryStore cleared
+16/10/24 12:55:24 INFO BlockManager: BlockManager stopped
+16/10/24 12:55:24 INFO BlockManagerMaster: BlockManagerMaster stopped
+16/10/24 12:55:24 INFO OutputCommitCoordinator$OutputCommitCoordinatorEndpoint: OutputCommitCoordinator stopped!
+16/10/24 12:55:24 INFO SparkContext: Successfully stopped SparkContext
+16/10/24 12:55:24 INFO ShutdownHookManager: Shutdown hook called
+16/10/24 12:55:24 INFO ShutdownHookManager: Deleting directory /tmp/spark-3068851b-9df4-4670-b195-e8d7701cb182

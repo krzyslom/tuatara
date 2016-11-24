@@ -1,0 +1,6 @@
+"0","set.seed(44)"
+"0","trening44 <- sample(1:nrow(dane), 9000)"
+"0","fit44 <- regsubsets(cena~., dane[trening44, ], nvmax = 11, method = ""forward"")"
+"2","1  linear dependencies found"
+"1","Reordering variables and trying again:
+"

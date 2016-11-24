@@ -1,0 +1,7 @@
+"0","hist("
+"0","  pokoje$liczba_wyrazow,"
+"0","  50,"
+"0","  main = ""Histogram liczby wyrazów w opisie oferty"","
+"0","  xlab = ""Liczba wyrazów"","
+"0","  ylab = ""Liczba ofert"""
+"0",")"

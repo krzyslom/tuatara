@@ -1,0 +1,45 @@
+"0","# Ładowanie danych"
+"0","dane1 <- read_csv(""2016-10-26df.csv"")"
+"2","Parsed with column specification:
+cols(
+  data_dodania = col_character(),
+  lokalizacja = col_character(),
+  href = col_character(),
+  opis = col_character(),
+  adres = col_character(),
+  cena = col_character(),
+  tytuł = col_character(),
+  do_wynajęcia_przez = col_character(),
+  współdzielenie = col_character(),
+  `wielkość_(m2)` = col_integer(),
+  liczba_pokoi = col_character(),
+  rodzaj_nieruchomości = col_character(),
+  preferowana_płeć = col_character(),
+  palący = col_character(),
+  przyjazne_zwierzakom = col_character(),
+  dostępny = col_character()
+)
+"
+"0","dane2 <- read_csv(""2016-11-17df.csv"")"
+"2","Parsed with column specification:
+cols(
+  data_dodania = col_character(),
+  lokalizacja = col_character(),
+  href = col_character(),
+  opis = col_character(),
+  adres = col_character(),
+  cena = col_character(),
+  tytuł = col_character(),
+  do_wynajęcia_przez = col_character(),
+  rodzaj_nieruchomości = col_character(),
+  współdzielenie = col_character(),
+  liczba_pokoi = col_character(),
+  preferowana_płeć = col_character(),
+  palący = col_character(),
+  przyjazne_zwierzakom = col_character(),
+  dostępny = col_character(),
+  `wielkość_(m2)` = col_integer()
+)
+"
+"0","dane <- rbind(dane1, dane2) %>% distinct()"
+"0","rm(dane1, dane2)"
