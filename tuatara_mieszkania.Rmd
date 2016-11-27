@@ -1,7 +1,9 @@
 ---
 title: "Analiza ofert dotyczących wynajmu nieruchomości z portalu gumtree.pl"
 author: "Krzysztof Słomczyński"
-output: html_notebook
+output:
+  html_document: default
+  html_notebook: default
 ---
 
 ```{r}
@@ -33,8 +35,6 @@ Oraz zapoznałem się z takimi narzędziami jak Crontab, Flume, Hadoop HDFS i Sp
 library(dplyr)
 library(readr)
 library(stringi)
-library(knitr)
-library(pander)
 ```
 
 Oferta dotycząca pokoju do wynajęcia na portalu [gumtree.pl](gumtree.pl) może zawierać następujące (powtarzalne) opcje wyboru:
@@ -67,11 +67,11 @@ Oferta dotycząca pokoju do wynajęcia na portalu [gumtree.pl](gumtree.pl) może
   * 5 pokoi
   * 6 lub więcej pokoi
 8. Palący
-  * "---------""
+  * "---------"
   * Tak
   * Nie
 9. Przyjazne zwierzakom
-  * "---------""
+  * "---------"
   * Tak
   * Nie
 10. Preferowana płeć
@@ -157,6 +157,9 @@ pokoje <-
     !is.na(wielkosc)
   ) %>%
   mutate(
+    lokalizacja = lokalizacja %>%
+      stri_replace_first_regex(", Warszawa", "") %>%
+      as.factor(),
     do_wynajecia_przez = do_wynajecia_przez %>%
       plyr::mapvalues(NA, "Nie podano") %>%
       as.factor(),
@@ -178,7 +181,7 @@ pokoje <-
     przyjazne_zwierzakom = przyjazne_zwierzakom %>%
       plyr::mapvalues(NA, "Tak") %>%
       as.factor(),
-    cena = stri_extract_all_charclass(
+    cena = stri_extract_all_regex(
       cena, "[[:digit:]]"
     ) %>%
       stri_join_list() %>%
@@ -303,6 +306,9 @@ mieszkania <-
     !is.na(wielkosc)
   ) %>%
   mutate(
+    lokalizacja = lokalizacja %>%
+      stri_replace_first_regex(", Warszawa", "") %>%
+      as.factor(),
     do_wynajecia_przez = do_wynajecia_przez %>%
       plyr::mapvalues(NA, "Nie podano") %>%
       as.factor(),
@@ -324,7 +330,7 @@ mieszkania <-
     przyjazne_zwierzakom = przyjazne_zwierzakom %>%
       plyr::mapvalues(NA, "Tak") %>%
       as.factor(),
-    cena = stri_extract_all_charclass(
+    cena = stri_extract_all_regex(
       cena, "[[:digit:]]"
     ) %>%
       stri_join_list() %>%
@@ -414,7 +420,7 @@ summary(fit11)
 abline(fit11, col = "red", lwd = 2)
 ```
 
-Zobaczmy jak cena zależy od pozostałych predykatów.
+Zobaczmy jak cena zależy od pozostałych predyktorów.
 
 ```{r}
 fit12 <-
@@ -423,7 +429,7 @@ summary(fit12)
 plot(fit12)
 ```
 
-Okazuje się, że predykaty `palacy` oraz `przyjazne_zwierzakom` nie są istotne w zbudowanym modelu. Dla uproszczenia go usuniemy te dwie kolumny. Pozostałe nieistotne parametry należą do grup czynników, z których część jest istotna, dlatego nie zostaną usunięte (należałoby wtedy usunąć też te istotne). Można zaobserwować, że stworzona nowa zmienna dotycząca liczby słów w ofercie jest bardzo istotnym predykatem w naszym modelu.
+Okazuje się, że predyktory `palacy` oraz `przyjazne_zwierzakom` nie są istotne w zbudowanym modelu. Dla uproszczenia go usuniemy te dwie kolumny. Pozostałe nieistotne parametry należą do grup czynników, z których część jest istotna, dlatego nie zostaną usunięte (należałoby wtedy usunąć też te istotne). Można zaobserwować, że stworzona nowa zmienna dotycząca liczby słów w ofercie jest bardzo istotnym predyktorem w naszym modelu.
 
 ```{r}
 fit13 <-
@@ -432,7 +438,7 @@ summary(fit13)
 plot(fit13)
 ```
 
-Spróbujmy wykorzystać interakcję miedzy dwoma predykatami - `lokalizacja` i `wielkosc`.
+Spróbujmy wykorzystać interakcję miedzy dwoma predyktorami - `lokalizacja` i `wielkosc`.
 
 ```{r}
 fit14 <-
@@ -510,23 +516,22 @@ Powodem dla którego metoda cv.glm nie korzysta docelowo z tej formuły jest fak
 Teraz sprawdzimy jakie błędy będą towarzyszyć wielomianom kolejnych stopni i czy opłaca się je zastosować.
 
 ```{r}
-# cvBlad <- rep(0, 6)
-# stopien <- 1:6
-# for (d in stopien) {
-#   fit32 <- glm(cena~poly(wielkosc, d), data = dane)
-#   cvBlad[d] <- loocv.glm(fit32)
-# }
-# 
-# plot(stopien, cvBlad)
+cvBlad <- rep(0, 6)
+stopien <- 1:6
+for (d in stopien) {
+  fit32 <- glm(cena~poly(wielkosc, d), data = dane)
+  cvBlad[d] <- loocv.glm(fit32)
+}
 
-cvBlad <-
-  stopien %>%
-  sapply(
-    function(x) {
-      fit32 <- glm(cena~poly(wielkosc, x), data = dane)
-      loocv.glm(fit32)
-    }
-  )
+# stopien <- 1:6
+# cvBlad <-
+#   stopien %>%
+#   sapply(
+#     function(x) {
+#       fit32 <- glm(cena~poly(wielkosc, x), data = dane)
+#       loocv.glm(fit32)
+#     }
+#   )
 
 plot(stopien, cvBlad, type = "b")
 ```
@@ -550,13 +555,13 @@ lines(stopien, cvBladK10, type = "b", col = "red")
 
 K krotna kroswalidacja jest bardziej stabilną metodą. W tym przypadku widać jak podpowiada nam, że już w zasadzie funkcja liniowa jest wystarczającym modelem.
 
-## Dobór modelu z wieloma predykatami
+## Dobór modelu z wieloma predyktorami
 
-Powyższy przykład pozwolił nam określić jaki stopień wielomianu jednego predykatu będzie odpowiedni dla naszego modelu. Tym razem chcemy jednak dobrać odpowiedni model z wieloma predykatami. Jakie są nasze opcje?
+Powyższy przykład pozwolił nam określić jaki stopień wielomianu jednego predyktora będzie odpowiedni dla naszego modelu. Tym razem chcemy jednak dobrać odpowiedni model z wieloma predyktorami. Jakie są nasze opcje?
 
 ### Best Subset Regression
 
-Metoda ta porównuje wszytkie możliwe modele regresji o wszystkich możliwych wielkościach (liczbie biorących udział w tworzeniu modelu predykatów) w poszukiwaniu najlepszego modelu dla każdego z rozmiarów. W sumie wykonuje 2^p modeli, gdzie p to lizcba predykatów (w naszym przypadku 2^11 czyli 2048) W osiągnięciu tego celu pomoże nam biblioteka `leaps`.
+Metoda ta porównuje wszytkie możliwe modele regresji o wszystkich możliwych wielkościach (liczbie biorących udział w tworzeniu modelu predyktorów) w poszukiwaniu najlepszego modelu dla każdego z rozmiarów. W sumie wykonuje 2^p modeli, gdzie p to lizcba predyktorów (w naszym przypadku 2^11 czyli 2048) W osiągnięciu tego celu pomoże nam biblioteka `leaps`.
 
 ```{r}
 library(leaps)
@@ -566,25 +571,25 @@ library(leaps)
 fit41 <- regsubsets(cena~., dane, nvmax = 11)
 sum41 <- summary(fit41)
 sum41
-plot(sum41$cp, xlab = "Liczba predykatów", ylab = "Cp")
+plot(sum41$cp, xlab = "Liczba predyktorów", ylab = "Cp")
 points(11, sum41$cp[11], pch = 20, col = "red")
 plot(fit41, scale = "Cp")
 coef(fit41, 11)
 ```
 
-Niestety, w tym wypadku nie widać czym charakteryzuje się ta metoda. Nie zakłada ona zagnieżdżania podzbiorów predykatów. Zagnieżdzanie polega na tym, że każdy kolejny większy model musi opierać się na czynnikach wchodzących w skład poprzedniego modelu. Tutaj mobłoby dojść do sytuacji, gdzie dla kilku pierwszych podzbiorów przy konkretnym czynniku występują gwiazdki, następnie zaś nie pojawiają się.
+Niestety, w tym wypadku nie widać czym charakteryzuje się ta metoda. Nie zakłada ona zagnieżdżania podzbiorów predyktorów. Zagnieżdzanie polega na tym, że każdy kolejny większy model musi opierać się na czynnikach wchodzących w skład poprzedniego modelu. Tutaj mobłoby dojść do sytuacji, gdzie dla kilku pierwszych podzbiorów przy konkretnym czynniku występują gwiazdki, następnie zaś nie pojawiają się.
 
-Cp jest miarą błędu predykcji. Jak widać w tym przypadku najmniejszy błąd występuje dla modelu o największej liczbie predykatów. Wcale nie musiało tak być i z większą liczbą czynników błąd mógłby zacząć rosnąć.
+Cp jest miarą błędu predykcji. Jak widać w tym przypadku najmniejszy błąd występuje dla modelu o największej liczbie predyktorów. Wcale nie musiało tak być i z większą liczbą czynników błąd mógłby zacząć rosnąć.
 
 ### Forward Stepwise Selection
 
-Ta metodą jest jest "chciwa" w tym sensie, że zagnieżdza kolejne podzbiory czynników. Nie tworzy zatem każdej możliwej kombinacji predykatów. Już raz dobrany czynnik wykorzystywany jest w następnym modelu. Przy dobieraniu kolejnego predykatu metoda ta dobiera najlepszą opcję porównując tylko p modeli. Zatem ogółem liczba operacji wynosi około (p^2)/2 (w naszym przypadku około 60, czyli tylko 3% w porównaniu z poprzednią metodą.
+Ta metodą jest jest "chciwa" w tym sensie, że zagnieżdza kolejne podzbiory czynników. Nie tworzy zatem każdej możliwej kombinacji predyktorów. Już raz dobrany czynnik wykorzystywany jest w następnym modelu. Przy dobieraniu kolejnego predyktora metoda ta dobiera najlepszą opcję porównując tylko p modeli. Zatem ogółem liczba operacji wynosi około (p^2)/2 (w naszym przypadku około 60, czyli tylko 3% w porównaniu z poprzednią metodą.
 
 ```{r}
 fit42 <- regsubsets(cena~., dane, nvmax = 11, method = "forward")
 sum42 <- summary(fit42)
 sum42
-plot(sum42$cp, xlab = "Liczba predykatów", ylab = "Cp")
+plot(sum42$cp, xlab = "Liczba predyktorów", ylab = "Cp")
 points(11, sum42$cp[11], pch = 20, col = "red")
 plot(fit42, scale = "Cp")
 coef(fit42, 11)
@@ -592,13 +597,13 @@ coef(fit42, 11)
 
 ### Backward Stepwise Selection
 
-Metoda ta różni się od FSS tym, że zaczyna porównywać modele zbudowane na wszystkich predykatach i z każdym kolejnym krokiem odejmuję jeden z nich (najmniej istotny) z zestawu. Minusem tej metody jest to, że nie można użyć jej na zestawie danych gdzie występuje więcej kolumn niż wierszy.
+Metoda ta różni się od FSS tym, że zaczyna porównywać modele zbudowane na wszystkich predyktorach i z każdym kolejnym krokiem odejmuję jeden z nich (najmniej istotny) z zestawu. Minusem tej metody jest to, że nie można użyć jej na zestawie danych gdzie występuje więcej kolumn niż wierszy.
 
 ```{r}
 fit43 <- regsubsets(cena~., dane, nvmax = 11, method = "backward")
 sum43 <- summary(fit43)
 sum43
-plot(sum43$cp, xlab = "Liczba predykatów", ylab = "Cp")
+plot(sum43$cp, xlab = "Liczba predyktorów", ylab = "Cp")
 points(11, sum43$cp[11], pch = 20, col = "red")
 plot(fit43, scale = "Cp")
 coef(fit43, 11)
@@ -636,7 +641,12 @@ plot(
   type = "b"
 )
 points(sqrt(fit44$rss[-1]/9000), col = "red", pch = 19, type = "b")
-legend("topright", legend = c("Trening", "Walidacja"), col = c("red", "black"), pch = 19)
+legend(
+  "topright",
+  legend = c("Trening", "Walidacja"),
+  col = c("red", "black"),
+  pch = 19
+)
 ```
 
 Na powyższym wykresie można zauważyć, że pomimo konsekwentnego spadku błędu treningowego, już przy rozmiarze modelu wynoszącym 3 błąd walidacji wypłaszcza się.
@@ -644,10 +654,17 @@ Na powyższym wykresie można zauważyć, że pomimo konsekwentnego spadku błę
 Na koniec operacje prowadzące do otrzymania takiego rezultatu zostaną ubrane w jedna funkcję.
 
 ```{r}
+# there was a problem with runtime: shiny, otherwise OK
+
 predict.regsubsets <-
-  function(obiekt, dane, id, ...) {
-    form <- as.formula(obiekt$call[[2]])
-    mat <- model.matrix(form, dane)
+  function(obiekt, formula, dane, id, ...) {
+    # form <- as.formula(obiekt$call[[2]]) # object of type 'symbol' is not subsettable
+    # form <- as.formula(cena ~ .) works, but not satisfactory, what if formula is different?
+    # form <- obiekt$call[[2]] # object of type 'symbol' is not subsettable
+    # form <- obiekt$call %>% as.character() %>% .[2] %>% as.formula() # object 'expr' not found
+    # form <- as.formula(obiekt$call %>% as.character() %>% .[2]) # object 'expr' not found
+    mat <- model.matrix(formula, dane)
+    # mat <- model.matrix(form, dane)
     coefi <- coef(obiekt, id = id)
     mat[, names(coefi)]%*%coefi
   }
@@ -661,41 +678,16 @@ Tym razem dobierzemy model korzystając z 10 krotnej kroswalidacji.
 set.seed(45)
 folds <- sample(rep(1:10, length = nrow(dane)))
 table(folds)
-# cvBledy <-
-#   1:10 %>%
-#   sapply(
-#     function (k) {
-#       best.fit <- regsubsets(cena~., dane[folds!=k, ], nvmax = 11, method = "forward")
-#       mapply(
-#           function(K, i) {
-#             pred <- predict(BEST.FIT, dane[folds==K, ], id = i)
-#             mean((dane$cena[folds==K]-pred)^2)
-#           },
-#           k, 1:length(dane),
-#           MoreArgs = list(BEST.FIT = best.fit)
-#         )
-#     }
-#   )
-
 cvBledy <- matrix(NA, 10, 11)
 for (k in 1:10) {
-  best.fit <- regsubsets(cena~., dane[folds!=k, ], nvmax = 11, method = "forward")
+  form <- as.formula(cena~.)
+  best.fit <- regsubsets(form, dane[folds!=k, ], nvmax = 11, method = "forward")
   for (i in 1:length(dane)) {
-    pred <- predict.regsubsets(best.fit, dane[folds==k, ], id = i)
+    pred <- predict.regsubsets(best.fit, form, dane[folds==k, ], id = i)
     cvBledy[k, i] <- mean((dane$cena[folds==k]-pred)^2)
   }
 }
 rmse.cv <- sqrt(apply(cvBledy, 2, mean))
-# plot(
-#   sqrt(valBlad),
-#      ylim = c(400, 900),
-#      xlab = "Rozmiar modelu",
-#      ylab = "Średnia kwadratowa błędów",
-#      pch = 19,
-#      type = "b"
-# )
-# points(rmse.cv, col = "red", pch = 19, type = "b")
-# legend("topright", legend = c("10 krotna Kroswalidacja", "Walidacja"), col = c("red", "black"), pch = 19)
 
 plot(
   sqrt(valBlad),
@@ -717,4 +709,82 @@ legend(
 
 ### Regularyzacja Tichonowa
 
+W przeprowadzeniu Ridge Regression pomoże nam pakiet `glmnet`.
+
+```{r}
+library(glmnet)
+```
+
+`glmnet` nie korzysta z języka formuły. Trzeba zatem podzielić dane na zestaw pedyktorów i odpowiedzi. Zanim przystąpimy do działania należy też znormalizować dane (np. sprowadzić je do przedziały (-3, 3) odejmując średnią od wartości i dzieląc przez odchylenie standardowe).
+
+```{r}
+daneNorm <-
+  dane %>%
+  mutate(
+    cena = (cena-mean(cena))/max(cena),
+    wielkosc = (wielkosc-mean(wielkosc))/max(wielkosc),
+    liczba_wyrazow = (liczba_wyrazow-mean(liczba_wyrazow))/max(liczba_wyrazow)
+  )
+
+x <- model.matrix(cena~.-1, dane)
+y <- dane$cena
+xn <- model.matrix(cena~.-1, daneNorm)
+yn <- daneNorm$cena
+
+fit45 <- glmnet(x, y, alpha = 0)
+plot(fit45, xvar = "lambda", label = TRUE)
+plot(fit45, xvar = "dev", label = TRUE)
+
+cvRidge <- cv.glmnet(x, y, alpha = 0)
+plot(cvRidge)
+
+fit45 <- glmnet(xn, yn, alpha = 0)
+plot(fit45, xvar = "lambda", label = TRUE)
+plot(fit45, xvar = "dev", label = TRUE)
+
+cvRidge <- cv.glmnet(xn, yn, alpha = 0)
+plot(cvRidge)
+```
+
+Ridge Regression charakteryzuje się członem związanym z regularyzacją. Oznacza to, że dla dużej wartości współczynnika regularyzacji lambda będą musiały występować odpowiednio małe współczynniki Beta. Ten typ regresji opiera się więc na wszystkich predyktorach. Minimalizuje tylko ich współczynniki.
+
+Na powyższych wykresach widać, że dla dużej lambdy współczynniki Beta zostają niemalże wyzerowane oraz że najmniejszy błąd otrzymujemy dla najmniejszej wartości lambda. Oznacza to, że udział każdego z czynników jest istotny dla budowanego modelu (posiada odpowiednio duży stojący przy nim współczynnik Beta). Potwierdza to więc poprzednie obserwacje, gdzie najskuteczniejszy model korzystał ze wszystkich 11 predyktorów. Fraction Deviance Explained jest jak R^2.
+
 ### Lasso
+
+Lasso czyli `Least Absolute Shrinkage and Selection Operator` różni się od poprzedniej metody elementem regulującym. Tym razem wartości Beta mogą zostać sprowadzone do zera, przez co część predyktorów może nie wziąć udziału w budowie modelu.
+
+```{r}
+fit46 <- glmnet(x, y)
+plot(fit46, xvar = "lambda", label = TRUE)
+plot(fit46, xvar = "dev", label = TRUE)
+
+cvLasso <- cv.glmnet(x, y)
+plot(cvLasso)
+
+fit47 <- glmnet(xn, yn)
+plot(fit47, xvar = "lambda", label = TRUE)
+plot(fit47, xvar = "dev", label = TRUE)
+
+cvLassoN <- cv.glmnet(xn, yn)
+plot(cvLassoN)
+
+(coef(cvLassoN) %>% as.vector() != 0) %>% sum()
+```
+
+Na sam koniec spróbujmy jeszcze dobrać parametr lambda za pomocą metody walidacji (wcześniejszy set treningowy i set testowy).
+
+```{r}
+lasso.tr <- glmnet(x[trening44, ], y[trening44])
+lasso.tr
+pred <- predict(lasso.tr, x[-trening44, ])
+dim(pred)
+rmse <- sqrt(apply((y[-trening44]-pred)^2, 2, mean))
+plot(log(lasso.tr$lambda), rmse, type = "b", xlab = "Log(lambda)")
+lam.best <- lasso.tr$lambda[order(rmse)[1]]
+lam.best
+lam.best %>% log()
+coef(lasso.tr, s = lam.best)
+```
+
+Można zauważyć, że w tym wypadku otrzymaliśmy model, który nie jest najlepszym z możliwych, ale też nie jest gorszy niż najbardziej elastyczny proponowany przez kroswalidację.
