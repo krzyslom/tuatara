@@ -1,8 +1,14 @@
 ---
-title: "Analiza ofert dotyczących wynajmu nieruchomości z portalu gumtree.pl"
+title: "Analiza ofert wynajmu nieruchomości z portalu gumtree.pl"
 author: "Krzysztof Słomczyński"
-output:
-  html_document: default
+output: 
+  html_document:
+    theme: spacelab
+    highlight: zenburn
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: true
   html_notebook: default
 ---
 
@@ -565,16 +571,31 @@ Metoda ta porównuje wszytkie możliwe modele regresji o wszystkich możliwych w
 
 ```{r}
 library(leaps)
+
+nPred <-
+  function(dane) {
+    dane %>%
+      sapply(
+        function(x) {
+          x %>%
+            levels() %>%
+            length() %>%
+            plyr::mapvalues(0, 2, warn_missing = FALSE)-1
+        }
+      ) %>%
+      sum()-1
+  }
 ```
 
 ```{r}
-fit41 <- regsubsets(cena~., dane, nvmax = 11)
+npDane <- nPred(dane)
+fit41 <- regsubsets(cena~., dane, nvmax = npDane)
 sum41 <- summary(fit41)
 sum41
 plot(sum41$cp, xlab = "Liczba predyktorów", ylab = "Cp")
-points(11, sum41$cp[11], pch = 20, col = "red")
+points(npDane, sum41$cp[npDane], pch = 20, col = "red")
 plot(fit41, scale = "Cp")
-coef(fit41, 11)
+coef(fit41, npDane)
 ```
 
 Niestety, w tym wypadku nie widać czym charakteryzuje się ta metoda. Nie zakłada ona zagnieżdżania podzbiorów predyktorów. Zagnieżdzanie polega na tym, że każdy kolejny większy model musi opierać się na czynnikach wchodzących w skład poprzedniego modelu. Tutaj mobłoby dojść do sytuacji, gdzie dla kilku pierwszych podzbiorów przy konkretnym czynniku występują gwiazdki, następnie zaś nie pojawiają się.
@@ -586,13 +607,13 @@ Cp jest miarą błędu predykcji. Jak widać w tym przypadku najmniejszy błąd 
 Ta metodą jest jest "chciwa" w tym sensie, że zagnieżdza kolejne podzbiory czynników. Nie tworzy zatem każdej możliwej kombinacji predyktorów. Już raz dobrany czynnik wykorzystywany jest w następnym modelu. Przy dobieraniu kolejnego predyktora metoda ta dobiera najlepszą opcję porównując tylko p modeli. Zatem ogółem liczba operacji wynosi około (p^2)/2 (w naszym przypadku około 60, czyli tylko 3% w porównaniu z poprzednią metodą.
 
 ```{r}
-fit42 <- regsubsets(cena~., dane, nvmax = 11, method = "forward")
+fit42 <- regsubsets(cena~., dane, nvmax = npDane, method = "forward")
 sum42 <- summary(fit42)
 sum42
 plot(sum42$cp, xlab = "Liczba predyktorów", ylab = "Cp")
-points(11, sum42$cp[11], pch = 20, col = "red")
+points(npDane, sum42$cp[npDane], pch = 20, col = "red")
 plot(fit42, scale = "Cp")
-coef(fit42, 11)
+coef(fit42, npDane)
 ```
 
 ### Backward Stepwise Selection
@@ -600,13 +621,13 @@ coef(fit42, 11)
 Metoda ta różni się od FSS tym, że zaczyna porównywać modele zbudowane na wszystkich predyktorach i z każdym kolejnym krokiem odejmuję jeden z nich (najmniej istotny) z zestawu. Minusem tej metody jest to, że nie można użyć jej na zestawie danych gdzie występuje więcej kolumn niż wierszy.
 
 ```{r}
-fit43 <- regsubsets(cena~., dane, nvmax = 11, method = "backward")
+fit43 <- regsubsets(cena~., dane, nvmax = npDane, method = "backward")
 sum43 <- summary(fit43)
 sum43
 plot(sum43$cp, xlab = "Liczba predyktorów", ylab = "Cp")
-points(11, sum43$cp[11], pch = 20, col = "red")
+points(npDane, sum43$cp[npDane], pch = 20, col = "red")
 plot(fit43, scale = "Cp")
-coef(fit43, 11)
+coef(fit43, npDane)
 ```
 
 ### Walidacja
@@ -616,7 +637,13 @@ Tym razem podzielimy obserwacje na dwa zestawy - treningowy i walidacyjny.
 ```{r}
 set.seed(44)
 trening44 <- sample(1:nrow(dane), 9000)
-fit44 <- regsubsets(cena~., dane[trening44, ], nvmax = 11, method = "forward")
+fit44 <-
+  regsubsets(
+    cena~.,
+    dane[trening44, ],
+    nvmax = nPred(dane[trening44, ]),
+    method = "forward"
+  )
 ```
 
 Teraz dokonamy predykcji na obserwacjach z zestawu testowego.
@@ -624,7 +651,7 @@ Teraz dokonamy predykcji na obserwacjach z zestawu testowego.
 ```{r}
 test44 <- model.matrix(cena~., dane[-trening44, ])
 valBlad <-
-  1:length(dane) %>%
+  1:(fit44$nvmax-1) %>%
   sapply(
     function(x) {
       coefi <- coef(fit44, id = x)
@@ -675,14 +702,21 @@ predict.regsubsets <-
 Tym razem dobierzemy model korzystając z 10 krotnej kroswalidacji.
 
 ```{r}
+K <- 10
 set.seed(45)
-folds <- sample(rep(1:10, length = nrow(dane)))
+folds <- sample(rep(1:K, length = nrow(dane)))
 table(folds)
-cvBledy <- matrix(NA, 10, 11)
-for (k in 1:10) {
+cvBledy <- matrix(NA, K, npDane)
+for (k in 1:K) {
   form <- as.formula(cena~.)
-  best.fit <- regsubsets(form, dane[folds!=k, ], nvmax = 11, method = "forward")
-  for (i in 1:length(dane)) {
+  best.fit <-
+    regsubsets(
+      form,
+      dane[folds!=k, ],
+      nvmax = nPred(dane[folds!=k, ]),
+      method = "forward"
+    )
+  for (i in 1:(fit44$nvmax-1)) {
     pred <- predict.regsubsets(best.fit, form, dane[folds==k, ], id = i)
     cvBledy[k, i] <- mean((dane$cena[folds==k]-pred)^2)
   }

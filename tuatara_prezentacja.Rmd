@@ -2,14 +2,16 @@
 title: "Analiza ofert dotyczących wynajmu nieruchomości z portalu gumtree.pl"
 author: "Krzysztof Słomczyński"
 date: "26 listopada 2016"
-output: revealjs::revealjs_presentation
-css: tuatara.css
-# runtime: shiny
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    reveal_options:
+      slideNumber: true
 ---
 
 ```{r setup, include = FALSE}
-htmltools::tagList(rmarkdown::html_dependency_font_awesome())
 library(knitr)
+library(pander)
 opts_chunk$set(
     comment = "",
     fig.width = 12,
@@ -26,11 +28,10 @@ opts_chunk$set(
 ```
 
 ```{r}
-library(glmnet)
 library(dplyr)
 library(readr)
 library(stringi)
-library(shiny)
+library(htmltools)
 ```
 
 ## Dlaczego taki temat?
@@ -38,147 +39,40 @@ library(shiny)
 - Praktyczny wymiar projektu
 - [CzasDojazdu](http://github.com/mi2-warsaw/CzasDojazdu)
 - Błędnie zapisywane dane (metraż), niektóre pomijane (palenie, zwierzęta, płeć)
-- Udoskonalenie scrapera
+
+## Cel
+
+- Udoskonalenie scrapera ([rvest](http://cran.r-project.org/web/packages/rvest/index.html) i [SelectorGadget](http://selectorgadget.com))
 - Zbudowanie modelu przewidującego ceny wynajmowanych pokojów
+- Dostarczenie aplikacji bazującej na modelu
 
-## Udoskonalenie scrapera - zdobycie danych
+## Struktura danych
 
-- Wykoszystanie pakietu `rvest` oraz wtyczki [SelectorGadget](http://selectorgadget.com)
-- Baza danych SQLite a pliki *.csv
-- Liczba ofert w czasie trwania projektu nie będzie duża
+<img style="float: left;" src="oferta_01.png" width="45%" height="45%">
+<img style="float: right;" src="oferta_02.png" width="50%" height="50%">
 
 ## Przygotowanie do projektu
 
 Ukończenie kursów:
 
-- Machine Learning at Coursera by Andrew Ng
-- Statistical Learning at Stanford ONLINE by Trevor Hastie and Robert Tibshirani
+- Machine Learning at Coursera by Andrew Ng (18 godzin)
+- Statistical Learning at Stanford ONLINE by Trevor Hastie and Robert Tibshirani (15 godzin)
 
 Zapoznanie się z narzędziami:
 
 - Hadoop HDFS
-- Spark (pakiet `sparklyr`)
-- Pakiety do różnego rodzaju regresji (`boot`, `leaps`, `glmnet`)
-- Pakiety do tworzenia prezentacji `revealjs`
+- Spark (pakiet [sparklyr](http://spark.rstudio.com/))
+- Pakiety do różnego rodzaju regresji ([boot](http://cran.r-project.org/web/packages/boot/index.html), [leaps](http://cran.r-project.org/web/packages/leaps/index.html), [glmnet](http://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html))
+- Pakiety do tworzenia prezentacji [revealjs](http://cran.r-project.org/web/packages/revealjs/index.html)
 
-## Struktura danych dotyczących pokojów na portalu {.floatBullet}
+# Jeden predyktor
 
-Powtarzalne opcje wyboru:
-
-1. Lokalizacja
-    - Miasto, Województwo
-2. Dostępny
-    - Data w formacie %d/%m/%Y
-3. Wielkość (m2)
-    - Liczba typu Integer
-4. Współdzielenie
-    - Współdzielenie pokoju
-    - Współdzielenie mieszkania/domu
-5. Do wynajęcia przez
-    - "---------"
-    - Właściciel
-    - Agencja
-6. Palący
-    - "---------""
-    - Tak
-    - Nie
-7. Przyjazne zwierzakom
-    - "---------""
-    - Tak
-    - Nie
-8. Cena
-    - Liczba typu Integer
-    - Proszę o kontakt
-    - Wymiana/zamiana
-9. Rodzaj nieruchomości
-    - "---------"
-    - Mieszkanie
-    - Dom
-    - Inne
-10. Preferowana płeć
-    - "---------"
-    - Mężczyzna
-    - Kobieta
-    - Bez preferencji
-11. Liczba pokoi
-    - "---------"
-    - Kawalerka lub garsoneria
-    - 2 pokoje
-    - 3 pokoje
-    - 4 pokoje
-    - 5 pokoi
-    - 6 lub więcej pokoi
- 
-## Przegląd danych
+## Dobieranie stopnia wielomianu
 
 ```{r}
-pokoje <- read_csv("pokoje.csv")
-
-pokoje <-
-  pokoje %>%
-  mutate(
-    lokalizacja = lokalizacja %>%
-      stri_replace_first_regex(", Warszawa", "") %>%
-      as.factor(),
-    do_wynajecia_przez = do_wynajecia_przez %>% as.factor(),
-    wspoldzielenie = wspoldzielenie %>% as.factor(),
-    liczba_pokoi = liczba_pokoi %>% as.factor(),
-    rodzaj_nieruchomosci = rodzaj_nieruchomosci %>% as.factor(),
-    preferowana_plec = preferowana_plec %>% as.factor(),
-    palacy = palacy %>% as.factor(),
-    przyjazne_zwierzakom = przyjazne_zwierzakom %>% as.factor()
-  )
-
-summary(pokoje)
-```
-
-## Cena a wielkość
-
-```{r}
-plot(cena~wielkosc, pokoje)
-```
-
-## Cena a wielkość - regresja
-
-```{r}
-sprawdzenie01 <-
-  pokoje %>%
-  filter(
-    between(cena, 100, 1000),
-    between(wielkosc, 10, 30)
-  )
-
-plot(cena~wielkosc, sprawdzenie01)
-fit01 <- lm(cena~wielkosc, sprawdzenie01)
-abline(fit01, col = "red", lwd = 2)
-```
-
-## Cena a wielkość - problemy
-
-- Nieintuicyjnie cena pokojów do wynajęcia spada wraz ze wzrostem metrażu
-- Niekonsekwencja we wprowadzaniu danych przez oferantów
-- Raz podany metraż całego mieszkania z ceną za pokój
-- Innym razem podany metraż pokoju z ceną za wszystkie pokoje
-
-## Cena a wielkość - wnioski
-
-- Wyrafinowana analiza treści opisu
-- Propozycja dokładnego opisu atrybutów w formularzu na [gumtree.pl](gumtree.pl)
-
-## Mieszkania i domy
-
-- Ponad 30 tysięcy ofert w danej chwili
-- Dla Warszawy 13 tysięcy
-- Wcześniej - `parking` oraz `liczba_lazienek`
-- Teraz - `wspoldzielenie` oraz `preferowana_plec`
-
-## Przegląd danych
-
-```{r}
-mieszkania <- read_csv("mieszkania.csv")
-
-mieszkania <-
-  mieszkania %>%
+dane <- read_csv("dane.csv")
+dane <-
+  dane %>%
   mutate(
     lokalizacja = lokalizacja %>%
       stri_replace_first_regex(", Warszawa", "") %>%
@@ -192,59 +86,17 @@ mieszkania <-
     przyjazne_zwierzakom = przyjazne_zwierzakom %>% as.factor()
   )
 
-summary(mieszkania)
-```
-
-## Cena a wielkość
-
-```{r}
-plot(cena~wielkosc, mieszkania)
-```
-
-## Cena a wielkość - regresja
-
-```{r}
-dane <-
-  mieszkania %>%
-  select(-opis) %>%
-  filter(
-    between(cena, 1000, 5000),
-    between(wielkosc, 20, 100)
-  )
-
 fit11 <- lm(cena~wielkosc, dane)
-summary(fit11)
-```
+fit21 <- lm(cena~wielkosc+I(wielkosc^2), dane)
+fit22 <- lm(cena~poly(wielkosc, 6), dane)
 
-## Cena a wielkość - regresja
-
-```{r}
-plot(cena~wielkosc, dane)
-abline(fit11, col = "red", lwd = 2)
-```
-
-## Udział pozostałych predyktorów
-
-```{r}
-fit12 <-
-  lm(cena~., dane)
-summary(fit12)
-```
-
-## Wielomiany
-
-```{r}
-fit21 <-
-  lm(cena~wielkosc+I(wielkosc^2), dane)
-fit22 <-
-  lm(cena~poly(wielkosc, 6), dane)
-summary(fit22)
-```
-
-## Wielomiany
-
-```{r}
-plot(cena~wielkosc, dane)
+plot(
+  cena~wielkosc,
+  dane,
+  main = "Średnia kwadratowa błędów w funkcji stopnia wielomianu",
+  xlab = expression("wielkość [m"^{2}*"]"),
+  ylab = "cena [PLN]"
+)
 abline(fit11, col = "red", lwd = 2)
 points(dane$wielkosc, fitted(fit21), col = "blue", pch = 20)
 points(dane$wielkosc, fitted(fit22), col = "green", pch = 20)
@@ -256,29 +108,7 @@ legend(
 )
 ```
 
-## LOOCV - wyznaczanie błędu
-
-- Biblioteka `boot`
-- `LOOCV` czyli `Leave One Out Cross Validation`
-- Tyle modeli ile obserwacji (pomija jedeną)
-- Błąd na podstawie różnic między pominiętymi obserwacjami a ich przewidzeniem
-- Delta (cały zbiór; poprawka o pominięcie)
-- Efekt bardziej widoczny dla K krotnej kroswalidacji.
-
-## LOOCV - wyznaczanie błędu
-
-- Powolna metoda cv.glm
-- Formuła uwzględniająca wpływ i-tej obserwacji na dopasowanie do niej krzywej
-- Kilka minut vs kilka sekund
-- Nie funkcjonuje ona w wypadku regresji logistycznej
-
-## K-fold - wyznaczanie błędu
-
-- K modeli (najpopularniejsze 5 i 10)
-- Znacznie mniej obliczeń - szybsze działanie
-- Różnica niewielka - bardziej stablina, miarodajna metoda
-
-## Kolejne stopnie wielomianów
+## Kroswalidacja
 
 ```{r}
 library(boot)
@@ -304,7 +134,15 @@ cvBladK10 <-
     }
   )
 
-plot(stopien, cvBlad %>% sqrt(), type = "b",  col = "red")
+plot(
+  stopien,
+  cvBlad %>% sqrt(),
+  main = "Średnia kwadratowa błędów w funkcji stopnia wielomianu",
+  xlab = "stopień wielomianu [-]",
+  ylab = "średnia kwadratowa błędów [PLN]",
+  type = "b",
+  col = "red"
+)
 lines(stopien, cvBladK10 %>% sqrt(), type = "b", col = "blue")
 legend(
   "topright",
@@ -314,79 +152,48 @@ legend(
 )
 ```
 
-## Dobór modelu z wieloma predyktorami
+# Wiele predyktorów
 
-Wcześniej - jaki stopień wielomianu jednego predyktora?
-Teraz - odpowiedni model z wieloma predyktorami
-
-## Best Subset Regression
-
-- Biblioteka `leaps`
-- Porównuje wszytkie możliwe modele regresji o wszystkich możliwych rozmiarach
-- Brak zagnieżdzania podgrup predyktorów
-- Wykonuje ${2^p}$ modeli, gdzie p to liczba predyktorów
-- Nasz przypadek - $2^{11}$ czyli 2048
-
-## Best Subset Regression
+## Metody dobierania rozmiaru modelu
 
 ```{r}
 library(leaps)
 
-fit41 <- regsubsets(cena~., dane, nvmax = 11)
-sum41 <- summary(fit41)
-sum41
-```
+nPred <-
+  function(dane) {
+    dane %>%
+      sapply(
+        function(x) {
+          x %>%
+            levels() %>%
+            length() %>%
+            plyr::mapvalues(0, 2, warn_missing = FALSE)-1
+        }
+      ) %>%
+      sum()-1
+  }
 
-## Best Subset Regression
+npDane <- nPred(dane)
+fit41 <- regsubsets(cena~., dane, nvmax = npDane)
+fit42 <- regsubsets(cena~., dane, nvmax = npDane, method = "forward")
+fit43 <- regsubsets(cena~., dane, nvmax = npDane, method = "backward")
 
-```{r}
-coef(fit41, 11)
-```
-
-## Best Subset Regression
-
-```{r}
-plot(sum41$cp, xlab = "Liczba predyktorów", ylab = "Cp", type = "b")
-points(11, sum41$cp[11], pch = 20, col = "red")
-```
-
-## Best Subset Regression
-
-```{r}
-plot(fit41, scale = "Cp")
-```
-
-## Best Subset Regression
-
-- W tym wypadku nie widać niezagnieżdzania
-- Najmniejszy błąd dla największej liczby predyktorów
-- Nie musiało tak być
-
-## Forward Stepwise Selection
-
-- "Chciwa" metoda - zagnieżdzanie podzbiorów predyktorów
-- Raz dobrany czynnik wykorzystywany w następnym modelu
-- Wykonuje około $\frac{p^2}{2}$ modeli
-- Nasz przypadek to około 60 - tylko 3% poprzednich
-
-## Backward Stepwise Selection
-
-- Start ze wszystkimi predyktorami w modelu
-- Odejmowanie najmniej wpływowego czynnika
-- Nie można użyć na danych, gdzie m<p
-
-## Walidacja - pojedyncza i K-krotna
-
-- Dzielenie obserwacji na zestawy - treningowy i walidacyjny
-
-```{r}
 set.seed(44)
 trening44 <- sample(1:nrow(dane), 9000)
-fit44 <- regsubsets(cena~., dane[trening44, ], nvmax = 11, method = "forward")
-
+invisible(
+  capture.output(
+    fit44 <-
+      regsubsets(
+        cena ~ .,
+        dane[trening44,],
+        nvmax = nPred(dane[trening44,]),
+        method = "forward"
+      )
+  )
+)
 test44 <- model.matrix(cena~., dane[-trening44, ])
 valBlad <-
-  1:length(dane) %>%
+  1:(fit44$nvmax-1) %>%
   sapply(
     function(x) {
       coefi <- coef(fit44, id = x)
@@ -403,50 +210,29 @@ predict.regsubsets <-
     mat[, names(coefi)]%*%coefi
   }
 
+K <- 10
 set.seed(45)
-folds <- sample(rep(1:10, length = nrow(dane)))
-cvBledy <- matrix(NA, 10, 11)
-for (k in 1:10) {
-  best.fit <- regsubsets(cena~., dane[folds!=k, ], nvmax = 11, method = "forward")
-  for (i in 1:length(dane)) {
+folds <- sample(rep(1:K, length = nrow(dane)))
+cvBledy <- matrix(NA, K, npDane)
+for (k in 1:K) {
+  invisible(
+    capture.output(
+      best.fit <-
+        regsubsets(
+          cena~.,
+          dane[folds!=k, ],
+          nvmax = nPred(dane[folds!=k, ]),
+          method = "forward"
+        )
+    )
+  )
+  for (i in 1:(fit44$nvmax-1)) {
     pred <- predict.regsubsets(best.fit, dane[folds==k, ], id = i)
     cvBledy[k, i] <- mean((dane$cena[folds==k]-pred)^2)
   }
 }
 rmse.cv <- sqrt(apply(cvBledy, 2, mean))
 ```
-
-## Walidacja - pojedyncza i K-krotna
-
-```{r}
-plot(
-  sqrt(valBlad),
-  ylim = c(400, 900),
-  xlab = "Rozmiar modelu",
-  ylab = "Średnia kwadratowa błędów",
-  pch = 19,
-  type = "b"
-)
-points(sqrt(fit44$rss[-1]/9000), col = "red", pch = 19, type = "b")
-points(rmse.cv, col = "blue", pch = 19, type = "b")
-legend(
-  "topright",
-  legend = c("10 krotna Kroswalidacja", "Trening", "Walidacja"),
-  col = c("blue", "red", "black"),
-  pch = 19
-)
-```
-
-## Ridge Regression (Regularyzacja Tichonowa)
-
-- Biblioteka `glmnet` (dzielenie danych na predyktory i odpowiedzi)
-- Człon regularyzacji w równaniu ($\lambda$ i $\mathcal{B}^2$)
-- Duża $\lambda$ - małe $\mathcal{B}$
-- Wszystkie predyktory
-- Minimalizacja współczynników $\mathcal{B}$
-- Normalizacja danych
-
-## Ridge Regression (Regularyzacja Tichonowa)
 
 ```{r}
 library(glmnet)
@@ -455,25 +241,8 @@ x <- model.matrix(cena~.-1, dane)
 y <- dane$cena
 
 fit45 <- glmnet(x, y, alpha = 0)
-plot(fit45, xvar = "lambda", label = TRUE)
-```
-
-## Ridge Regression (Regularyzacja Tichonowa)
-
-```{r}
-plot(fit45, xvar = "dev", label = TRUE)
-```
-
-## Ridge Regression (Regularyzacja Tichonowa)
-
-```{r}
 cvRidge <- cv.glmnet(x, y, alpha = 0)
-plot(cvRidge)
-```
 
-## Ridge Regression (Regularyzacja Tichonowa)
-
-```{r}
 daneNorm <-
   dane %>%
   mutate(
@@ -485,313 +254,158 @@ daneNorm <-
 xn <- model.matrix(cena~.-1, daneNorm)
 yn <- daneNorm$cena
 
-fit45 <- glmnet(xn, yn, alpha = 0)
-plot(fit45, xvar = "lambda", label = TRUE)
+fit45N <- glmnet(xn, yn, alpha = 0)
+
+cvRidgeN <- cv.glmnet(xn, yn, alpha = 0)
 ```
-
-## Ridge Regression (Regularyzacja Tichonowa)
-
-```{r}
-plot(fit45, xvar = "dev", label = TRUE)
-```
-
-## Ridge Regression (Regularyzacja Tichonowa)
-
-```{r}
-cvRidge <- cv.glmnet(xn, yn, alpha = 0)
-plot(cvRidge)
-```
-
-## Lasso
-
-- `Least Absolute Shrinkage and Selection Operator`
-- Element regulujący $|\mathcal{B}|$
-- Współczynniki $\mathcal{B}$ sprowadzone do zera
-- Część predyktorów nie bierze udziału
-
-## Lasso
 
 ```{r}
 fit46 <- glmnet(x, y)
-plot(fit46, xvar = "lambda", label = TRUE)
-```
-
-## Lasso
-
-```{r}
-plot(fit46, xvar = "dev", label = TRUE)
-```
-
-## Lasso
-
-```{r}
 cvLasso <- cv.glmnet(x, y)
-plot(cvLasso)
-```
 
-## Lasso
-
-```{r}
 fit47 <- glmnet(xn, yn)
-plot(fit47, xvar = "lambda", label = TRUE)
-```
-
-## Lasso
-
-```{r}
-plot(fit47, xvar = "dev", label = TRUE)
-```
-
-## Lasso
-
-```{r}
 cvLassoN <- cv.glmnet(xn, yn)
-plot(cvLassoN)
-```
 
-## Lasso
-
-```{r}
-(coef(cvLassoN) %>% as.vector() != 0) %>% sum()
-```
-
-## Walidacja - dobranie parametru $\lambda$
-
-```{r}
 lasso.tr <- glmnet(x[trening44, ], y[trening44])
-lasso.tr
 pred <- predict(lasso.tr, x[-trening44, ])
 rmse <- sqrt(apply((y[-trening44]-pred)^2, 2, mean))
-```
 
-## Walidacja - dobranie parametru $\lambda$
-
-```{r}
-plot(log(lasso.tr$lambda), rmse, type = "b", xlab = "Log(lambda)")
-```
-
-## Walidacja - dobranie parametru $\lambda$
-
-- Wcześniej
-$log(\lambda_{min}) < 0$ oraz $log(\lambda_{1st}) \simeq 2.7$
-
-- Teraz
-
-```{r}
 lam.best <- lasso.tr$lambda[order(rmse)[1]]
-lam.best
-lam.best %>% log()
 ```
-
-## Walidacja - dobranie parametru $\lambda$
 
 ```{r}
-coef(lasso.tr, s = lam.best)
+p <- npDane
+n <- 100
+
+rozmiary <-
+  data_frame(
+    Metoda = c(
+        "Best Subset Regression",
+        "Forward Stepwise Selection",
+        "Backward Stepwise Selection",
+        "Walidacja",
+        "Kroswalidacja",
+        "Ridge Regression",
+        "Lasso"
+      ),
+    `Liczba modeli` = c(
+        HTML("2<sup>p</sup>"),
+        HTML("<sup>p<sup>2</sup></sup>&frasl;<sub>2</sub>"),
+        HTML("<sup>p<sup>2</sup></sup>&frasl;<sub>2</sub>"),
+        HTML("<sup>p<sup>2</sup></sup>&frasl;<sub>2</sub>"),
+        HTML("K <sup>p<sup>2</sup></sup>&frasl;<sub>2</sub>"),
+        HTML("K n<sub>&lambda;</sub>"),
+        HTML("K n<sub>&lambda;</sub>")
+      ),
+    `p=30 K=10 n=100` = c(
+      HTML("10<sup>12</sup>"),
+      round((p^2)/2),
+      round((p^2)/2),
+      round((p^2)/2),
+      round(K*(p^2)/2),
+      K*n,
+      K*n
+    ),
+    `Najmniejszy błąd` = c(
+      (fit41$rss/nrow(dane)) %>% min() %>% sqrt() %>% round(),
+      (fit42$rss/nrow(dane)) %>% min() %>% sqrt() %>% round(),
+      (fit43$rss/nrow(dane)) %>% min() %>% sqrt() %>% round(),
+      valBlad %>% min() %>% sqrt() %>% round(),
+      rmse.cv %>% na.omit() %>% min() %>% round(),
+      cvRidge$cvm %>% min() %>% sqrt() %>% round(),
+      cvLasso$cvm %>% min() %>% sqrt() %>% round()
+    )
+  )
+
+pander(rozmiary %>% pandoc.table(split.tables = Inf))
 ```
 
-## Aplikacja
+## Walidacja i Kroswalidacja
 
-Niestety, ten format prezentacji nie obsługuje uruchamiania aplikacji Shiny.
+```{r}
+plot(
+  sqrt(fit44$rss[-1]/9000),
+  ylim = c(400, 900),
+  xlab = "rozmiar modelu [-]",
+  ylab = "średnia kwadratowa błędów [PLN]",
+  col = "red",
+  pch = 19,
+  type = "b"
+)
+points(sqrt(valBlad), col = "blue", pch = 19, type = "b")
+points(rmse.cv, col = "green", pch = 19, type = "b")
+legend(
+  "topright",
+  legend = c("Trening", "Walidacja", "10 krotna Kroswalidacja"),
+  col = c("red", "blue", "green"),
+  pch = 19
+)
+```
 
-<!-- ## Aplikacja -->
+## Regularyzacja - Ridge Regression i Lasso
 
-<!-- ```{r} -->
-<!-- dane <- read_csv("dane.csv") -->
-<!-- model <- get(load("model.Rda")) -->
-<!-- cvLasso <- get(load("cvLasso.Rda")) -->
-<!-- iMin <- which(cvLasso$lambda == cvLasso$lambda.min) -->
-<!-- iSE <- which(cvLasso$lambda == cvLasso$lambda.1se) -->
+```{r}
+par(mfrow = c(2, 1))
+plot(
+  cvRidge,
+  xlab = expression(log(lambda)~"[-]"),
+  ylab = expression("błąd średniokwadratowy [PLN"^{2}*"]"),
+  mgp = c(2.5, 1, 0)
+)
+plot(
+  cvLasso,
+  xlab = expression(log(lambda)~"[-]"),
+  ylab = expression("błąd średniokwadratowy [PLN"^{2}*"]"),
+  mgp = c(2.5, 1, 0)
+)
+```
 
-<!-- dane <- -->
-<!--   dane %>% -->
-<!--   mutate( -->
-<!--     lokalizacja = lokalizacja %>% -->
-<!--       stri_replace_first_regex(", Warszawa", "") %>% -->
-<!--       as.factor(), -->
-<!--     do_wynajecia_przez = do_wynajecia_przez %>% as.factor(), -->
-<!--     parking = parking %>% as.factor(), -->
-<!--     liczba_pokoi = liczba_pokoi %>% as.factor(), -->
-<!--     rodzaj_nieruchomosci = rodzaj_nieruchomosci %>% as.factor(), -->
-<!--     liczba_lazienek = liczba_lazienek %>% as.factor(), -->
-<!--     palacy = palacy %>% as.factor(), -->
-<!--     przyjazne_zwierzakom = przyjazne_zwierzakom %>% as.factor() -->
-<!--   ) -->
-<!-- ``` -->
+# Napotkane problemy i wnioski
 
-<!-- <!-- <div style="margin-left:-50px; margin-top:-25px; width:150%"> -->
-<!-- ```{r} -->
-<!-- shinyApp( -->
-<!--   shinyUI( -->
-<!--     fluidPage( -->
-<!--       fluidRow( -->
-<!--         column( -->
-<!--           3, -->
-<!--           selectInput( -->
-<!--             "lokalizacja", -->
-<!--             "Lokalizacja:", -->
-<!--             dane$lokalizacja %>% levels() -->
-<!--           ) -->
-<!--         ), -->
-<!--         column( -->
-<!--           3, -->
-<!--           selectInput( -->
-<!--             "liczba_pokoi", -->
-<!--             "Liczba pokoi:", -->
-<!--             dane$liczba_pokoi %>% levels() -->
-<!--           ) -->
-<!--         ), -->
-<!--         column( -->
-<!--           3, -->
-<!--           selectInput( -->
-<!--             "liczba_lazienek", -->
-<!--             "Liczba łazienek:", -->
-<!--             dane$liczba_lazienek %>% levels() -->
-<!--           ) -->
-<!--         ), -->
-<!--         column( -->
-<!--           2, -->
-<!--           selectInput( -->
-<!--             "do_wynajecia_przez", -->
-<!--             "Do wynajęcia przez:", -->
-<!--             dane$do_wynajecia_przez %>% levels() -->
-<!--           ) -->
-<!--         ) -->
-<!--       ), -->
-<!--       fluidRow( -->
-<!--         column( -->
-<!--           2, -->
-<!--           numericInput( -->
-<!--             "wielkosc", -->
-<!--             "Wielkość (m2):", -->
-<!--             dane$wielkosc %>% summary() %>% .[3], -->
-<!--             dane$wielkosc %>% min(), -->
-<!--             dane$wielkosc %>% max() -->
-<!--           ) -->
-<!--         ), -->
-<!--         column( -->
-<!--           3, -->
-<!--           selectInput( -->
-<!--             "rodzaj_nieruchomosci", -->
-<!--             "Rodzaj nieruchomości:", -->
-<!--             dane$rodzaj_nieruchomosci %>% levels() -->
-<!--           ) -->
-<!--         ), -->
-<!--         column( -->
-<!--           2, -->
-<!--           selectInput( -->
-<!--             "parking", -->
-<!--             "Parking:", -->
-<!--             dane$parking %>% levels() -->
-<!--           ) -->
-<!--         ), -->
-<!--         column( -->
-<!--           2, -->
-<!--           selectInput( -->
-<!--             "palacy", -->
-<!--             "Palący:", -->
-<!--             dane$palacy %>% levels() -->
-<!--           ) -->
-<!--         ), -->
-<!--         column( -->
-<!--           3, -->
-<!--           selectInput( -->
-<!--             "przyjazne_zwierzakom", -->
-<!--             "Przyjazne zwierzakom:", -->
-<!--             dane$przyjazne_zwierzakom %>% levels() -->
-<!--           ) -->
-<!--         ) -->
-<!--       ), -->
-<!--       fluidRow( -->
-<!--         column( -->
-<!--           3, -->
-<!--           textAreaInput( -->
-<!--             "opis", -->
-<!--             "Opis:", -->
-<!--             readLines("overlook.txt"), -->
-<!--             "440%", -->
-<!--             "220px" -->
-<!--           ) -->
-<!--         ) -->
-<!--       ), -->
-<!--       fluidRow( -->
-<!--         column( -->
-<!--           8, -->
-<!--           htmlOutput("propozycja") -->
-<!--         ) -->
-<!--       ) -->
-<!--     ) -->
-<!--   ), -->
-<!--   shinyServer( -->
-<!--     function(input, output, session) { -->
-<!--       wycena <- -->
-<!--         eventReactive( -->
-<!--           c( -->
-<!--             input$lokalizacja, -->
-<!--             input$do_wynajecia_przez, -->
-<!--             input$rodzaj_nieruchomosci, -->
-<!--             input$wielkosc, -->
-<!--             input$liczba_pokoi, -->
-<!--             input$liczba_lazienek, -->
-<!--             input$parking, -->
-<!--             input$palacy, -->
-<!--             input$przyjazne_zwierzakom, -->
-<!--             input$opis -->
-<!--           ), -->
-<!--           { -->
-<!--             df <- -->
-<!--               data_frame( -->
-<!--                 cena = 1, -->
-<!--                 lokalizacja = input$lokalizacja %>% -->
-<!--                   factor(dane$lokalizacja %>% levels()), -->
-<!--                 do_wynajecia_przez = input$do_wynajecia_przez %>% -->
-<!--                   factor(dane$do_wynajecia_przez %>% levels()), -->
-<!--                 liczba_pokoi = input$liczba_pokoi %>% -->
-<!--                   factor(dane$liczba_pokoi %>% levels()), -->
-<!--                 rodzaj_nieruchomosci = input$rodzaj_nieruchomosci %>% -->
-<!--                   factor(dane$rodzaj_nieruchomosci %>% levels()), -->
-<!--                 wielkosc = input$wielkosc, -->
-<!--                 parking = input$parking %>% -->
-<!--                   factor(dane$parking %>% levels()), -->
-<!--                 liczba_lazienek = input$liczba_lazienek %>% -->
-<!--                   factor(dane$liczba_lazienek %>% levels()), -->
-<!--                 palacy = input$palacy %>% -->
-<!--                   factor(dane$palacy %>% levels()), -->
-<!--                 przyjazne_zwierzakom = input$przyjazne_zwierzakom %>% -->
-<!--                   factor(dane$przyjazne_zwierzakom %>% levels()), -->
-<!--                 liczba_wyrazow = input$opis %>% stri_count_words() -->
-<!--               ) -->
-<!--             mat <- model.matrix(cena~.-1, df) -->
-<!--             pred <- predict(model, mat) -->
-<!--             HTML( -->
-<!--               paste( -->
-<!--                 paste0( -->
-<!--                   "Model o najmniejszym błędzie sugeruje cenę wynajmu: ", -->
-<!--                   "<font color=\"#FF0000\"><b>", -->
-<!--                   pred[iMin+1] %>% round(), -->
-<!--                   "</b></font>", -->
-<!--                   " PLN" -->
-<!--                 ), -->
-<!--                 paste0( -->
-<!--                   "Elastyczniejszy model sugeruje cenę wynajmu: ", -->
-<!--                   "<font color=\"#00FF00\"><b>", -->
-<!--                   pred[iSE+1] %>% round(), -->
-<!--                   "</b></font>", -->
-<!--                   " PLN" -->
-<!--                 ), -->
-<!--                 sep = "<br/>" -->
-<!--               ) -->
-<!--             ) -->
-<!--           } -->
-<!--         ) -->
-<!--       output$propozycja <- renderText(wycena()) -->
-<!--     } -->
-<!--   ) -->
-<!-- ) -->
-<!-- ``` -->
+## Napotkane problemy
+
+```{r}
+pokoje <- read_csv("pokoje.csv")
+
+pokoje <-
+  pokoje %>%
+  mutate(
+    lokalizacja = lokalizacja %>%
+      stri_replace_first_regex(", Warszawa", "") %>%
+      as.factor(),
+    do_wynajecia_przez = do_wynajecia_przez %>% as.factor(),
+    wspoldzielenie = wspoldzielenie %>% as.factor(),
+    liczba_pokoi = liczba_pokoi %>% as.factor(),
+    rodzaj_nieruchomosci = rodzaj_nieruchomosci %>% as.factor(),
+    preferowana_plec = preferowana_plec %>% as.factor(),
+    palacy = palacy %>% as.factor(),
+    przyjazne_zwierzakom = przyjazne_zwierzakom %>% as.factor()
+  )
+
+sprawdzenie01 <-
+  pokoje %>%
+  filter(
+    between(cena, 50, 1500),
+    between(wielkosc, 10, 100)
+  )
+
+plot(
+  cena~wielkosc,
+  sprawdzenie01,
+  main = "Zależność ceny od metrażu",
+  xlab = expression("wielkość [m"^{2}*"]"),
+  ylab = "cena [PLN]"
+)
+fit01 <- lm(cena~wielkosc, sprawdzenie01)
+abline(fit01, col = "red", lwd = 2)
+```
+
+## Wnioski
+
+- Wyrafinowana analiza treści opisu
+- Propozycja dokładnego opisu atrybutów w formularzu na [gumtree.pl](gumtree.pl)
 
 ## Kod i inne projekty
 
 - Kod napisany na potrzeby tego projektu na [github](http://github.com/krzyslom/tuatara)
 - [Raport](http://mi2.mini.pw.edu.pl:3838/pracuj/ml) z innego projektu w którym brałem udział
-
-Dziękuję za uwagę

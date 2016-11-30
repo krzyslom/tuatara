@@ -2,7 +2,10 @@ library(dplyr)
 library(readr)
 library(stringi)
 library(glmnet)
+library(knitr)
+# library(pander)
 library(shiny)
+library(shinythemes)
 
 dane <- read_csv("../dane.csv")
 model <- get(load("../model.Rda"))
@@ -29,6 +32,7 @@ dane <-
 shinyApp(
   shinyUI(
     fluidPage(
+      theme = shinytheme("darkly"),
       fluidRow(
         column(
           4,
@@ -115,16 +119,15 @@ shinyApp(
           textAreaInput(
             "opis",
             "Opis:",
-            readLines("../overlook.txt"),
-            "300%",
-            "300px"
+            readLines("../overlook.txt")
           )
         )
       ),
       fluidRow(
         column(
           8,
-          htmlOutput("propozycja")
+          div(tableOutput("propozycja"), style = "font-size:160%"),
+          offset = 3
         )
       )
     )
@@ -170,28 +173,35 @@ shinyApp(
               )
             mat <- model.matrix(cena~.-1, df)
             pred <- predict(model, mat)
-            HTML(
-              paste(
+            data_frame(
+              Model = c("Najmniejszy błąd", "Elastyczny"),
+              `Sugerowana cena wynajmu` = c(
                 paste0(
-                  "Model o najmniejszym błędzie sugeruje cenę wynajmu: ",
+                  "<center>",
                   "<font color=\"#FF0000\"><b>",
                   pred[iMin+1] %>% round(),
                   "</b></font>",
-                  " PLN"
+                  " PLN",
+                  "</center>"
                 ),
                 paste0(
-                  "Elastyczniejszy model sugeruje cenę wynajmu: ",
+                  "<center>",
                   "<font color=\"#00FF00\"><b>",
                   pred[iSE+1] %>% round(),
                   "</b></font>",
-                  " PLN"
-                ),
-                sep = "<br/>"
+                  " PLN",
+                  "</center>"
+                )
               )
             )
           }
         )
-      output$propozycja <- renderText(wycena())
+      output$propozycja <-
+        renderTable(
+          {wycena()},
+          align = "c",
+          sanitize.text.function = function(x) x
+        )
     }
   )
 )
