@@ -1,7 +1,7 @@
 ---
-title: "Analiza ofert dotyczących wynajmu nieruchomości z portalu gumtree.pl"
-author: "Krzysztof Słomczyński"
-date: "26 listopada 2016"
+title: "Analiza ofert wynajmu nieruchomości z portalu gumtree.pl"
+author: "<br><small>[Krzysztof Słomczyński](http://github.com/krzyslom)</small>"
+date: "<small>9 grudnia 2016</small>"
 output:
   revealjs::revealjs_presentation:
     theme: night
@@ -29,45 +29,25 @@ opts_chunk$set(
 
 ```{r}
 library(dplyr)
+library(ggplot2)
 library(readr)
 library(stringi)
 library(htmltools)
 ```
 
-## Dlaczego taki temat?
+## Inspiracja
 
 - Praktyczny wymiar projektu
-- [CzasDojazdu](http://github.com/mi2-warsaw/CzasDojazdu)
-- Błędnie zapisywane dane (metraż), niektóre pomijane (palenie, zwierzęta, płeć)
+- Aplikacja bazująca na modelu przewidującym ceny
 
-## Cel
-
-- Udoskonalenie scrapera ([rvest](http://cran.r-project.org/web/packages/rvest/index.html) i [SelectorGadget](http://selectorgadget.com))
-- Zbudowanie modelu przewidującego ceny wynajmowanych pokojów
-- Dostarczenie aplikacji bazującej na modelu
+<img style="float: left;" src="czasdojazdu.png">
 
 ## Struktura danych
 
-<img style="float: left;" src="oferta_01.png" width="45%" height="45%">
-<img style="float: right;" src="oferta_02.png" width="50%" height="50%">
+<img style="float: left;" src="oferta_01.png" width="45%">
+<img style="float: right;" src="oferta_02.png" width="50%">
 
-## Przygotowanie do projektu
-
-Ukończenie kursów:
-
-- Machine Learning at Coursera by Andrew Ng (18 godzin)
-- Statistical Learning at Stanford ONLINE by Trevor Hastie and Robert Tibshirani (15 godzin)
-
-Zapoznanie się z narzędziami:
-
-- Hadoop HDFS
-- Spark (pakiet [sparklyr](http://spark.rstudio.com/))
-- Pakiety do różnego rodzaju regresji ([boot](http://cran.r-project.org/web/packages/boot/index.html), [leaps](http://cran.r-project.org/web/packages/leaps/index.html), [glmnet](http://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html))
-- Pakiety do tworzenia prezentacji [revealjs](http://cran.r-project.org/web/packages/revealjs/index.html)
-
-# Jeden predyktor
-
-## Dobieranie stopnia wielomianu
+## Jedna zmienna objaśniająca
 
 ```{r}
 dane <- read_csv("dane.csv")
@@ -86,75 +66,37 @@ dane <-
     przyjazne_zwierzakom = przyjazne_zwierzakom %>% as.factor()
   )
 
-fit11 <- lm(cena~wielkosc, dane)
-fit21 <- lm(cena~wielkosc+I(wielkosc^2), dane)
-fit22 <- lm(cena~poly(wielkosc, 6), dane)
-
-plot(
-  cena~wielkosc,
+ggplot(
   dane,
-  main = "Średnia kwadratowa błędów w funkcji stopnia wielomianu",
-  xlab = expression("wielkość [m"^{2}*"]"),
-  ylab = "cena [PLN]"
-)
-abline(fit11, col = "red", lwd = 2)
-points(dane$wielkosc, fitted(fit21), col = "blue", pch = 20)
-points(dane$wielkosc, fitted(fit22), col = "green", pch = 20)
-legend(
-  "topleft",
-  legend = c(1, 2, 6),
-  col = c("red", "blue", "green"),
-  pch = 19
-)
-```
-
-## Kroswalidacja
-
-```{r}
-library(boot)
-
-loocv.glm <-
-  function(fit) {
-    h <- lm.influence(fit)$h
-    mean((residuals(fit)/(1-h))^2)
-  }
-
-cvBlad <- rep(0, 6)
-stopien <- 1:6
-for (d in stopien) {
-  fit32 <- glm(cena~poly(wielkosc, d), data = dane)
-  cvBlad[d] <- loocv.glm(fit32)
-}
-
-cvBladK10 <-
-  stopien %>%
-  sapply(
-    function(x) {
-      cv.glm(dane, fit32, K = 10)$delta[1]
-    }
+  aes(wielkosc, cena)
+) +
+  geom_point(position = position_jitter(2, 100), alpha = 0.25) +
+  geom_smooth(aes(color = "1"), method = "lm") +
+  geom_smooth(aes(color = "2"), method = "lm", formula = y ~ poly(x, 2)) +
+  geom_smooth(aes(color = "6"), method = "lm", formula = y ~ poly(x, 6)) +
+  scale_x_continuous(
+    expression("wielkość [m"^{2}*"]"),
+    breaks = seq(0, 100, 10)
+  ) +
+  scale_y_continuous(
+    "cena [PLN]",
+    breaks = seq(0, 5000, 500)
+  ) +
+  scale_colour_manual(
+    name = "Stopień wielomianu",
+    values = c("1" = "red", "2" = "green", "6" = "blue")
+  ) +
+  ggtitle("Zależność ceny od metrażu") +
+  theme(
+    plot.title = element_text(face = "bold"),
+    legend.background = element_blank(),
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(face = "bold"),
+    legend.position = c(0.1, 0.9)
   )
-
-plot(
-  stopien,
-  cvBlad %>% sqrt(),
-  main = "Średnia kwadratowa błędów w funkcji stopnia wielomianu",
-  xlab = "stopień wielomianu [-]",
-  ylab = "średnia kwadratowa błędów [PLN]",
-  type = "b",
-  col = "red"
-)
-lines(stopien, cvBladK10 %>% sqrt(), type = "b", col = "blue")
-legend(
-  "topright",
-  legend = c("LOOCV", "K-fold"),
-  col = c("red", "blue"),
-  pch = 19
-)
 ```
 
-# Wiele predyktorów
-
-## Metody dobierania rozmiaru modelu
+## Wiele zmiennych objaśniających
 
 ```{r}
 library(leaps)
@@ -289,16 +231,16 @@ rozmiary <-
         "Lasso"
       ),
     `Liczba modeli` = c(
-        HTML("2<sup>p</sup>"),
-        HTML("<sup>p<sup>2</sup></sup>&frasl;<sub>2</sub>"),
-        HTML("<sup>p<sup>2</sup></sup>&frasl;<sub>2</sub>"),
-        HTML("<sup>p<sup>2</sup></sup>&frasl;<sub>2</sub>"),
-        HTML("K <sup>p<sup>2</sup></sup>&frasl;<sub>2</sub>"),
+        HTML("2<sup><small>p</small></sup>"),
+        HTML("<sup>p<sup><small>2</small></sup></sup>&frasl;<sub>2</sub>"),
+        HTML("<sup>p<sup><small>2</small></sup></sup>&frasl;<sub>2</sub>"),
+        HTML("<sup>p<sup><small>2</small></sup></sup>&frasl;<sub>2</sub>"),
+        HTML("K <sup>p<sup><small>2</small></sup></sup>&frasl;<sub>2</sub>"),
         HTML("K n<sub>&lambda;</sub>"),
         HTML("K n<sub>&lambda;</sub>")
       ),
     `p=30 K=10 n=100` = c(
-      HTML("10<sup>12</sup>"),
+      HTML("10<sup><small>12</small></sup>"),
       round((p^2)/2),
       round((p^2)/2),
       round((p^2)/2),
@@ -317,52 +259,14 @@ rozmiary <-
     )
   )
 
-pander(rozmiary %>% pandoc.table(split.tables = Inf))
+rozmiary %>% kable(align = "c")
+# pander(rozmiary %>% pandoc.table(split.tables = Inf))
 ```
-
-## Walidacja i Kroswalidacja
-
-```{r}
-plot(
-  sqrt(fit44$rss[-1]/9000),
-  ylim = c(400, 900),
-  xlab = "rozmiar modelu [-]",
-  ylab = "średnia kwadratowa błędów [PLN]",
-  col = "red",
-  pch = 19,
-  type = "b"
-)
-points(sqrt(valBlad), col = "blue", pch = 19, type = "b")
-points(rmse.cv, col = "green", pch = 19, type = "b")
-legend(
-  "topright",
-  legend = c("Trening", "Walidacja", "10 krotna Kroswalidacja"),
-  col = c("red", "blue", "green"),
-  pch = 19
-)
-```
-
-## Regularyzacja - Ridge Regression i Lasso
-
-```{r}
-par(mfrow = c(2, 1))
-plot(
-  cvRidge,
-  xlab = expression(log(lambda)~"[-]"),
-  ylab = expression("błąd średniokwadratowy [PLN"^{2}*"]"),
-  mgp = c(2.5, 1, 0)
-)
-plot(
-  cvLasso,
-  xlab = expression(log(lambda)~"[-]"),
-  ylab = expression("błąd średniokwadratowy [PLN"^{2}*"]"),
-  mgp = c(2.5, 1, 0)
-)
-```
-
-# Napotkane problemy i wnioski
 
 ## Napotkane problemy
+
+- Wyrafinowana analiza treści opisu
+- Propozycja dokładnego opisu atrybutów w formularzu na [gumtree.pl](gumtree.pl)
 
 ```{r}
 pokoje <- read_csv("pokoje.csv")
@@ -389,21 +293,37 @@ sprawdzenie01 <-
     between(wielkosc, 10, 100)
   )
 
-plot(
-  cena~wielkosc,
+ggplot(
   sprawdzenie01,
-  main = "Zależność ceny od metrażu",
-  xlab = expression("wielkość [m"^{2}*"]"),
-  ylab = "cena [PLN]"
-)
-fit01 <- lm(cena~wielkosc, sprawdzenie01)
-abline(fit01, col = "red", lwd = 2)
+  aes(wielkosc, cena)
+) +
+  geom_point(position = position_jitter(2, 100), alpha = 0.25) +
+  geom_smooth(method = "lm", color = "red") +
+  scale_x_continuous(
+    expression("wielkość [m"^{2}*"]"),
+    breaks = seq(0, 100, 10)
+  ) +
+  scale_y_continuous(
+    "cena [PLN]",
+    breaks = seq(0, 1500, 100)
+  ) +
+  ggtitle("Zależność ceny od metrażu") +
+  theme(plot.title = element_text(face = "bold"))
 ```
 
-## Wnioski
+## Przygotowanie do projektu
 
-- Wyrafinowana analiza treści opisu
-- Propozycja dokładnego opisu atrybutów w formularzu na [gumtree.pl](gumtree.pl)
+Ukończenie kursów:
+
+- Machine Learning at Coursera by Andrew Ng (18 godzin)
+- Statistical Learning at Stanford ONLINE by Trevor Hastie and Robert Tibshirani (15 godzin)
+
+Zapoznanie się z narzędziami:
+
+- Hadoop HDFS
+- Spark (pakiet [sparklyr](http://spark.rstudio.com/))
+- Pakiety do różnego rodzaju regresji ([boot](http://cran.r-project.org/web/packages/boot/index.html), [leaps](http://cran.r-project.org/web/packages/leaps/index.html), [glmnet](http://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html))
+- Pakiety do tworzenia prezentacji [revealjs](http://cran.r-project.org/web/packages/revealjs/index.html)
 
 ## Kod i inne projekty
 

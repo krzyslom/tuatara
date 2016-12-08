@@ -3,7 +3,6 @@ library(readr)
 library(stringi)
 library(glmnet)
 library(knitr)
-# library(pander)
 library(shiny)
 library(shinythemes)
 
@@ -33,6 +32,7 @@ shinyApp(
   shinyUI(
     fluidPage(
       theme = shinytheme("darkly"),
+      # tags$style("label[for='opis']{color: red;}"),
       fluidRow(
         column(
           4,
@@ -121,20 +121,21 @@ shinyApp(
             "Opis:",
             readLines("../overlook.txt")
           )
+          # uiOutput("opis")
         )
       ),
       fluidRow(
         column(
           8,
           div(tableOutput("propozycja"), style = "font-size:160%"),
-          offset = 3
+          offset = 4
         )
       )
     )
   ),
   shinyServer(
     function(input, output, session) {
-      wycena <-
+      df <-
         eventReactive(
           c(
             input$lokalizacja,
@@ -148,60 +149,98 @@ shinyApp(
             input$przyjazne_zwierzakom,
             input$opis
           ),
-          {
-            df <-
-              data_frame(
-                cena = 1,
-                lokalizacja = input$lokalizacja %>%
-                  factor(dane$lokalizacja %>% levels()),
-                do_wynajecia_przez = input$do_wynajecia_przez %>%
-                  factor(dane$do_wynajecia_przez %>% levels()),
-                liczba_pokoi = input$liczba_pokoi %>%
-                  factor(dane$liczba_pokoi %>% levels()),
-                rodzaj_nieruchomosci = input$rodzaj_nieruchomosci %>%
-                  factor(dane$rodzaj_nieruchomosci %>% levels()),
-                wielkosc = input$wielkosc,
-                parking = input$parking %>%
-                  factor(dane$parking %>% levels()),
-                liczba_lazienek = input$liczba_lazienek %>%
-                  factor(dane$liczba_lazienek %>% levels()),
-                palacy = input$palacy %>%
-                  factor(dane$palacy %>% levels()),
-                przyjazne_zwierzakom = input$przyjazne_zwierzakom %>%
-                  factor(dane$przyjazne_zwierzakom %>% levels()),
-                liczba_wyrazow = input$opis %>% stri_count_words()
-              )
-            mat <- model.matrix(cena~.-1, df)
-            pred <- predict(model, mat)
-            data_frame(
-              Model = c("Najmniejszy błąd", "Elastyczny"),
-              `Sugerowana cena wynajmu` = c(
-                paste0(
-                  "<center>",
-                  "<font color=\"#FF0000\"><b>",
-                  pred[iMin+1] %>% round(),
-                  "</b></font>",
-                  " PLN",
-                  "</center>"
-                ),
-                paste0(
-                  "<center>",
-                  "<font color=\"#00FF00\"><b>",
-                  pred[iSE+1] %>% round(),
-                  "</b></font>",
-                  " PLN",
-                  "</center>"
-                )
+          data_frame(
+            cena = 1,
+            lokalizacja = input$lokalizacja %>%
+              factor(dane$lokalizacja %>% levels()),
+            do_wynajecia_przez = input$do_wynajecia_przez %>%
+              factor(dane$do_wynajecia_przez %>% levels()),
+            liczba_pokoi = input$liczba_pokoi %>%
+              factor(dane$liczba_pokoi %>% levels()),
+            rodzaj_nieruchomosci = input$rodzaj_nieruchomosci %>%
+              factor(dane$rodzaj_nieruchomosci %>% levels()),
+            wielkosc = input$wielkosc,
+            parking = input$parking %>%
+              factor(dane$parking %>% levels()),
+            liczba_lazienek = input$liczba_lazienek %>%
+              factor(dane$liczba_lazienek %>% levels()),
+            palacy = input$palacy %>%
+              factor(dane$palacy %>% levels()),
+            przyjazne_zwierzakom = input$przyjazne_zwierzakom %>%
+              factor(dane$przyjazne_zwierzakom %>% levels()),
+            liczba_wyrazow = input$opis %>% stri_count_words()
+          )
+        )
+      wycena <-
+        reactive({
+          mat <- model.matrix(cena~.-1, df())
+          pred <- predict(model, mat)
+          data_frame(
+            Model = c("A", "B"),
+            `Sugerowana cena wynajmu` = c(
+              paste0(
+                "<center>",
+                "<font color=\"#FF0000\"><b>",
+                pred[iMin+1] %>% round(),
+                "</b></font>",
+                " PLN",
+                "</center>"
+              ),
+              paste0(
+                "<center>",
+                "<font color=\"#00FF00\"><b>",
+                pred[iSE+1] %>% round(),
+                "</b></font>",
+                " PLN",
+                "</center>"
               )
             )
-          }
+          )
+        })
+      slowa <-
+        reactive(
+          paste(
+            "Liczba słów w opisie:",
+            "<font color=\"#FFFF00\"><b>",
+            df()$liczba_wyrazow,
+            "</b></font>"
+          )
         )
+      observe(
+        updateTextAreaInput(
+          session,
+          "opis",
+          HTML(
+            paste0(
+              "Opis (liczba wyrazów: ",
+              df()$liczba_wyrazow,
+              "):"
+            )
+          )
+        )
+      )
+      # output$opis <-
+      #   renderUI(
+      #     textAreaInput(
+      #       "opis",
+      #       HTML(
+      #         paste(
+      #           "Opis (liczba wyrazów):",
+      #           "<font color=\"#FFFF00\">",
+      #           input$opis %>% stri_count_words(),
+      #           "</font>"
+      #         )
+      #       ),
+      #       input$opis
+      #     )
+      #   )
+      # output$licznik <- renderText(slowa())
       output$propozycja <-
-        renderTable(
-          {wycena()},
-          align = "c",
-          sanitize.text.function = function(x) x
-        )
+        renderTable({
+          wycena()
+        },
+        align = "c",
+        sanitize.text.function = function(x) x)
     }
   )
 )
