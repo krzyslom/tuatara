@@ -49,6 +49,9 @@ library(htmltools)
 
 ## Jedna zmienna objaśniająca
 
+<center>Przed - <font color="#00FFFF"><b>13</b></font> tysięcy ofert, po - <font color="#FFFF00"><b>10</b></font> tysięcy<center>
+<hr style="visibility:hidden;">
+
 ```{r}
 dane <- read_csv("dane.csv")
 dane <-
@@ -97,6 +100,9 @@ ggplot(
 ```
 
 ## Wiele zmiennych objaśniających
+
+<center>Przed - <font color="#FF0000"><b>39</b></font> zmiennych niezależnych, po - <font color="#00FF00"><b>26</b></font></center>
+<hr style="visibility:hidden;">
 
 ```{r}
 library(leaps)
